@@ -1,4 +1,5 @@
 from .models import Deck, Player, Dealer, Hand, Card
+from .strategy import get_recommended_move
 from enum import Enum, auto
 
 class GameState(Enum):
@@ -15,6 +16,7 @@ class BlackjackGame:
         self.dealer = Dealer()
         self.state = GameState.BETTING
         self.current_hand_index = 0
+        self.last_move_feedback: Optional[dict] = None
 
     def start_round(self, bet_amount: int):
         """Initializes a new round with a bet."""
@@ -38,17 +40,39 @@ class BlackjackGame:
 
         self.state = GameState.PLAYER_TURN
         self.current_hand_index = 0
+        self.last_move_feedback = None
 
         # Check for immediate Blackjack
         if self.player.hands[0].is_blackjack() or self.dealer.hands[0].is_blackjack():
             self.state = GameState.DEALER_TURN # Move to resolution
             self.resolve_round()
 
+    def _record_move_feedback(self, player_move: str, hand_index: int):
+        player_hand = self.player.hands[hand_index]
+        dealer_upcard = self.dealer.hands[0].cards[0] # Dealer's visible card
+        recommended_move = get_recommended_move(player_hand, dealer_upcard)
+
+        is_correct = (player_move == recommended_move)
+        self.last_move_feedback = {
+            "player_move": player_move,
+            "recommended_move": recommended_move,
+            "is_correct": is_correct,
+            "hand_index": hand_index
+        }
+
+    def get_perfect_play_advice(self, hand_index: int) -> str:
+        """Returns the recommended move for a given hand index without executing it."""
+        player_hand = self.player.hands[hand_index]
+        dealer_upcard = self.dealer.hands[0].cards[0]
+        return get_recommended_move(player_hand, dealer_upcard)
+
     def hit(self):
         """Current hand takes a card."""
         if self.state != GameState.PLAYER_TURN:
             raise RuntimeError("Not player's turn.")
-
+        
+        self._record_move_feedback("H", self.current_hand_index)
+        
         hand = self.player.hands[self.current_hand_index]
         hand.add_card(self.deck.deal())
 
@@ -60,6 +84,8 @@ class BlackjackGame:
         if self.state != GameState.PLAYER_TURN:
             raise RuntimeError("Not player's turn.")
         
+        self._record_move_feedback("S", self.current_hand_index)
+
         self.player.hands[self.current_hand_index].is_stayed = True
         self._advance_hand()
 
@@ -74,6 +100,8 @@ class BlackjackGame:
         
         if self.player.bankroll < hand.bet:
             raise ValueError("Insufficient bankroll to double down.")
+        
+        self._record_move_feedback("D", self.current_hand_index)
 
         self.player.bankroll -= hand.bet
         hand.bet *= 2
@@ -92,6 +120,8 @@ class BlackjackGame:
         
         if self.player.bankroll < hand.bet:
             raise ValueError("Insufficient bankroll to split.")
+        
+        self._record_move_feedback("P", self.current_hand_index)
 
         # Create new hand
         new_hand = Hand(bet=hand.bet, is_from_split=True)

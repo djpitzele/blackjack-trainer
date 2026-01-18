@@ -56,7 +56,26 @@ def main():
             except Exception as e:
                 print(f"Error: {e}")
 
+            # Display strategy feedback immediately after a move
+            if game.last_move_feedback and game.last_move_feedback["hand_index"] == game.current_hand_index:
+                feedback = game.last_move_feedback
+                if feedback["is_correct"]:
+                    print("Strategy Feedback: Correct Play!")
+                else:
+                    print(f"Strategy Feedback: Incorrect Play. Recommended: {feedback["recommended_move"]}")
+                game.last_move_feedback = None # Clear after displaying
+
         print_game_state(game)
+
+        # Display any remaining feedback for hands that finished (e.g., busted) without a specific player action
+        # This might be redundant with the above, but ensures feedback for final states.
+        if game.last_move_feedback:
+            feedback = game.last_move_feedback
+            if feedback["is_correct"]:
+                print("Strategy Feedback: Correct Play!")
+            else:
+                print(f"Strategy Feedback: Incorrect Play. Recommended: {feedback["recommended_move"]}")
+            game.last_move_feedback = None # Clear after displaying
         if game.state == GameState.ROUND_OVER:
             # Show results
             dealer_val = game.dealer.hands[0].get_value()
