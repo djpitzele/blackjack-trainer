@@ -3,34 +3,28 @@ from .strategy import get_recommended_move
 from enum import Enum, auto
 
 class GameState(Enum):
-    BETTING = auto()
     PLAYER_TURN = auto()
     DEALER_TURN = auto()
     ROUND_OVER = auto()
 
 class BlackjackGame:
     """Manages the flow and logic of a Blackjack game."""
-    def __init__(self, player_name: str, bankroll: int = 1000, num_decks: int = 6):
+    def __init__(self, player_name: str, num_decks: int = 6):
         self.deck = Deck(num_decks=num_decks)
-        self.player = Player(player_name, bankroll)
+        self.player = Player(player_name)
         self.dealer = Dealer()
-        self.state = GameState.BETTING
+        self.state = GameState.ROUND_OVER
         self.current_hand_index = 0
         self.last_move_feedback: Optional[dict] = None
 
-    def start_round(self, bet_amount: int):
-        """Initializes a new round with a bet."""
-        if self.state != GameState.BETTING and self.state != GameState.ROUND_OVER:
+    def start_round(self):
+        """Initializes a new round."""
+        if self.state != GameState.ROUND_OVER:
             raise RuntimeError("Cannot start round in current state.")
-        
-        if bet_amount > self.player.bankroll:
-            raise ValueError("Insufficient bankroll.")
 
         self.player.reset()
         self.dealer.reset()
         self.deck = Deck(num_decks=6) # Reshuffle every round for simplicity or track penetration
-        
-        self.player.place_bet(bet_amount)
         
         # Initial deal
         self.player.hands[0].add_card(self.deck.deal())
@@ -90,7 +84,7 @@ class BlackjackGame:
         self._advance_hand()
 
     def double_down(self):
-        """Double the bet, take one card, and stand."""
+        """Take one card and stand."""
         if self.state != GameState.PLAYER_TURN:
             raise RuntimeError("Not player's turn.")
         
@@ -98,13 +92,8 @@ class BlackjackGame:
         if not hand.can_double_down():
             raise RuntimeError("Cannot double down on this hand.")
         
-        if self.player.bankroll < hand.bet:
-            raise ValueError("Insufficient bankroll to double down.")
-        
         self._record_move_feedback("D", self.current_hand_index)
 
-        self.player.bankroll -= hand.bet
-        hand.bet *= 2
         hand.add_card(self.deck.deal())
         hand.is_stayed = True
         self._advance_hand()
@@ -118,15 +107,11 @@ class BlackjackGame:
         if not hand.can_split():
             raise RuntimeError("Cannot split this hand.")
         
-        if self.player.bankroll < hand.bet:
-            raise ValueError("Insufficient bankroll to split.")
-        
         self._record_move_feedback("P", self.current_hand_index)
 
         # Create new hand
-        new_hand = Hand(bet=hand.bet, is_from_split=True)
+        new_hand = Hand(is_from_split=True)
         hand.is_from_split = True
-        self.player.bankroll -= hand.bet
         
         # Move one card to the new hand
         card_to_move = hand.cards.pop()
@@ -178,49 +163,13 @@ class BlackjackGame:
         self.resolve_round()
 
     def resolve_round(self):
-        """Determines winners and payouts."""
+        """Determines hand outcomes."""
         self.state = GameState.ROUND_OVER
-        dealer_hand = self.dealer.hands[0]
-        dealer_value = dealer_hand.get_value()
-        dealer_bust = dealer_hand.is_bust()
-        dealer_bj = dealer_hand.is_blackjack()
-
-        for hand in self.player.hands:
-            player_value = hand.get_value()
-            player_bust = hand.is_bust()
-            player_bj = hand.is_blackjack()
-
-            if player_bust:
-                # Loss - bet already deducted
-                pass
-            elif dealer_bj:
-                if player_bj:
-                    # Push
-                    self.player.add_winnings(hand.bet)
-                else:
-                    # Loss
-                    pass
-            elif player_bj:
-                # Blackjack pays 3:2
-                self.player.add_winnings(int(hand.bet * 2.5))
-            elif dealer_bust:
-                # Win
-                self.player.add_winnings(hand.bet * 2)
-            elif player_value > dealer_value:
-                # Win
-                self.player.add_winnings(hand.bet * 2)
-            elif player_value == dealer_value:
-                # Push
-                self.player.add_winnings(hand.bet)
-            else:
-                # Loss
-                pass
 
     def get_game_status(self):
         """Returns a summary of the current game state."""
         return {
             "state": self.state.name,
             "player_hands": [str(h) for h in self.player.hands],
-            "dealer_hand": str(self.dealer.hands[0]) if self.state == GameState.ROUND_OVER else f"[{self.dealer.hands[0].cards[0]}, ??]",
-            "bankroll": self.player.bankroll
+            "dealer_hand": str(self.dealer.hands[0]) if self.state == GameState.ROUND_OVER else f"[{self.dealer.hands[0].cards[0]}, ??]"
         }

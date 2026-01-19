@@ -44,9 +44,8 @@ class Deck:
 
 class Hand:
     """Represents a hand of cards for a player or dealer."""
-    def __init__(self, bet: int = 0, is_from_split: bool = False):
+    def __init__(self, is_from_split: bool = False):
         self.cards: List[Card] = []
-        self.bet = bet
         self.is_stayed = False
         self.is_from_split = is_from_split
 
@@ -97,20 +96,8 @@ class Participant:
 
 class Player(Participant):
     """Represents a human player."""
-    def __init__(self, name: str, bankroll: int = 1000):
+    def __init__(self, name: str):
         super().__init__(name)
-        self.bankroll = bankroll
-
-    def place_bet(self, amount: int, hand_index: int = 0):
-        """Places a bet for a specific hand."""
-        if amount > self.bankroll:
-            raise ValueError("Insufficient funds.")
-        self.bankroll -= amount
-        self.hands[hand_index].bet = amount
-
-    def add_winnings(self, amount: int):
-        """Adds winnings back to the bankroll."""
-        self.bankroll += amount
 
 class Dealer(Participant):
     """Represents the dealer."""

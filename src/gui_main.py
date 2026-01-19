@@ -1,7 +1,7 @@
 import tkinter as tk
 from tkinter import messagebox
-from .blackjack.game import BlackjackGame, GameState
-from .blackjack.models import Card, Hand
+from blackjack.game import BlackjackGame, GameState
+from blackjack.models import Card, Hand
 
 class BlackjackUI:
     """Manages the Blackjack GUI using tkinter."""
@@ -44,11 +44,8 @@ class BlackjackUI:
         self.info_frame = tk.Frame(self.main_frame, bg="#1b5e20")
         self.info_frame.pack(fill=tk.X, pady=5)
         
-        self.status_label = tk.Label(self.info_frame, text="Welcome to Blackjack Trainer!", bg="#1b5e20", fg="white", font=("Arial", 14, "bold"), wraplength=700)
-        self.status_label.pack(pady=10)
-        
-        self.bankroll_label = tk.Label(self.info_frame, text=f"Bankroll: ${self.game.player.bankroll}", bg="#1b5e20", fg="#ffd700", font=("Arial", 12, "bold"))
-        self.bankroll_label.pack(side=tk.RIGHT, padx=20)
+        self.status_label = tk.Label(self.info_frame, text="Welcome to Blackjack Trainer!", bg="#1b5e20", fg="white", font=("Arial", 18, "bold"), wraplength=700)
+        self.status_label.pack(pady=20)
 
         # Player area
         self.player_hands_container = tk.Frame(self.main_frame, bg="#2e7d32")
@@ -58,18 +55,12 @@ class BlackjackUI:
         self.player_canvases = []
 
         # Control area
-        self.controls_frame = tk.Frame(self.main_frame, bg="#1b5e20", pady=20)
+        self.controls_frame = tk.Frame(self.main_frame, bg="#1b5e20", pady=10)
         self.controls_frame.pack(fill=tk.X, side=tk.BOTTOM)
 
-        # Betting buttons
-        self.bet_frame = tk.Frame(self.controls_frame, bg="#1b5e20")
-        self.bet_10_btn = tk.Button(self.bet_frame, text="Bet $10", command=lambda: self.handle_bet(10), width=10, font=("Arial", 10, "bold"))
-        self.bet_50_btn = tk.Button(self.bet_frame, text="Bet $50", command=lambda: self.handle_bet(50), width=10, font=("Arial", 10, "bold"))
-        self.bet_100_btn = tk.Button(self.bet_frame, text="Bet $100", command=lambda: self.handle_bet(100), width=10, font=("Arial", 10, "bold"))
-        
-        self.bet_10_btn.pack(side=tk.LEFT, padx=5)
-        self.bet_50_btn.pack(side=tk.LEFT, padx=5)
-        self.bet_100_btn.pack(side=tk.LEFT, padx=5)
+        # Result display (less central)
+        self.results_label = tk.Label(self.controls_frame, text="", bg="#1b5e20", fg="#ffd700", font=("Arial", 11, "italic"))
+        self.results_label.pack(pady=5)
 
         # Action buttons
         self.action_frame = tk.Frame(self.controls_frame, bg="#1b5e20")
@@ -83,8 +74,8 @@ class BlackjackUI:
         self.double_btn.pack(side=tk.LEFT, padx=5)
         self.split_btn.pack(side=tk.LEFT, padx=5)
 
-        # New round button (shown after round)
-        self.new_round_btn = tk.Button(self.controls_frame, text="Next Round (Enter)", command=self._prepare_betting, width=20, font=("Arial", 12, "bold"), bg="#ffd700")
+        # New round button (shown after round or at start)
+        self.new_round_btn = tk.Button(self.controls_frame, text="Deal Hand (Enter)", command=self._start_new_round, width=20, font=("Arial", 12, "bold"), bg="#ffd700")
 
     def _bind_keys(self):
         """Binds keyboard events."""
@@ -96,23 +87,13 @@ class BlackjackUI:
 
     def _handle_enter(self):
         """Handles the Enter key based on game state."""
-        if self.game.state == GameState.BETTING:
-            # Default to $10 bet if they just press Enter? Or do nothing?
-            # Let's say it repeats the last bet or $10.
-            self.handle_bet(10)
-        elif self.game.state == GameState.ROUND_OVER:
-            self._prepare_betting()
+        if self.game.state == GameState.ROUND_OVER:
+            self._start_new_round()
 
-    def _prepare_betting(self):
-        """Moves back to betting state."""
-        self.game.state = GameState.BETTING
-        self.game.last_move_feedback = None
-        self.update_ui()
-
-    def handle_bet(self, amount: int):
-        """Starts a new round with the given bet."""
+    def _start_new_round(self):
+        """Starts a new round."""
         try:
-            self.game.start_round(amount)
+            self.game.start_round()
             self.update_ui()
         except Exception as e:
             messagebox.showerror("Error", str(e))
@@ -149,18 +130,12 @@ class BlackjackUI:
 
     def update_ui(self):
         """Refreshes the entire UI state."""
-        # Update Bankroll
-        self.bankroll_label.config(text=f"Bankroll: ${self.game.player.bankroll}")
-
         # Update Controls
-        self.bet_frame.pack_forget()
         self.action_frame.pack_forget()
         self.new_round_btn.pack_forget()
+        self.results_label.config(text="") # Clear results by default
 
-        if self.game.state == GameState.BETTING:
-            self.bet_frame.pack()
-            self.status_label.config(text="Place your bet to start!", fg="white")
-        elif self.game.state == GameState.PLAYER_TURN:
+        if self.game.state == GameState.PLAYER_TURN:
             self.action_frame.pack()
             self._show_feedback()
             # Enable/Disable Split and Double based on current hand
@@ -169,7 +144,11 @@ class BlackjackUI:
             self.double_btn.config(state=tk.NORMAL if curr_hand.can_double_down() else tk.DISABLED)
         elif self.game.state == GameState.ROUND_OVER:
             self.new_round_btn.pack()
-            self._show_results()
+            if self.game.dealer.hands[0].cards:
+                self._show_results()
+                self._show_feedback() # Show final feedback even when round is over
+            else:
+                self.status_label.config(text="Welcome to Blackjack Trainer!", fg="white")
 
         # Update Canvases
         self._draw_dealer_hand()
@@ -187,11 +166,13 @@ class BlackjackUI:
             else:
                 self.status_label.config(text=f"Incorrect. You should have {rec_move}.", fg="#ff5252") # Light red
         else:
-            # Show advice for the current hand if no move made yet or after a move
-            advice = self.game.get_perfect_play_advice(self.game.current_hand_index)
-            move_map = {"H": "Hit", "S": "Stand", "D": "Double Down", "P": "Split"}
-            # self.status_label.config(text=f"Playing Hand {self.game.current_hand_index + 1}... (Psst: {move_map[advice]})", fg="white")
-            self.status_label.config(text=f"Playing Hand {self.game.current_hand_index + 1}...", fg="white")
+            if self.game.state == GameState.PLAYER_TURN:
+                # Show advice for the current hand if no move made yet or after a move
+                advice = self.game.get_perfect_play_advice(self.game.current_hand_index)
+                move_map = {"H": "Hit", "S": "Stand", "D": "Double Down", "P": "Split"}
+                self.status_label.config(text=f"Hand {self.game.current_hand_index + 1}: What's the best move?", fg="white")
+            elif self.game.state == GameState.ROUND_OVER and not self.game.last_move_feedback:
+                 self.status_label.config(text="Round Complete", fg="white")
 
     def _show_results(self):
         """Shows the outcome of the round."""
@@ -199,28 +180,28 @@ class BlackjackUI:
         dealer_val = self.game.dealer.hands[0].get_value()
         
         if self.game.dealer.hands[0].is_blackjack():
-            results.append("Dealer has Blackjack!")
+            results.append("Dealer: Blackjack")
         elif self.game.dealer.hands[0].is_bust():
-            results.append("Dealer Busted!")
+            results.append("Dealer: Busted")
         else:
-            results.append(f"Dealer has {dealer_val}")
+            results.append(f"Dealer: {dealer_val}")
 
         # Summary of player hands
         for i, hand in enumerate(self.game.player.hands):
-            prefix = f"Hand {i+1}: " if len(self.game.player.hands) > 1 else ""
+            prefix = f"Hand {i+1}: " if len(self.game.player.hands) > 1 else "You: "
             val = hand.get_value()
             if hand.is_blackjack():
-                results.append(f"{prefix}Blackjack! Win!")
+                results.append(f"{prefix}Blackjack")
             elif hand.is_bust():
-                results.append(f"{prefix}Busted!")
+                results.append(f"{prefix}Bust")
             elif self.game.dealer.hands[0].is_bust() or val > dealer_val:
-                results.append(f"{prefix}Won with {val}!")
+                results.append(f"{prefix}Win ({val})")
             elif val == dealer_val and not self.game.dealer.hands[0].is_blackjack():
                 results.append(f"{prefix}Push ({val})")
             else:
-                results.append(f"{prefix}Lost with {val}")
+                results.append(f"{prefix}Loss ({val})")
 
-        self.status_label.config(text=" | ".join(results), fg="#ffd700")
+        self.results_label.config(text=" | ".join(results))
 
     def _draw_card(self, canvas: tk.Canvas, card: Card, x: int, y: int, hidden: bool = False):
         """Helper to render a visual card on a canvas."""
@@ -249,7 +230,7 @@ class BlackjackUI:
     def _draw_dealer_hand(self):
         """Renders the dealer's cards."""
         self.dealer_canvas.delete("all")
-        if self.game.state == GameState.BETTING:
+        if not self.game.dealer.hands[0].cards:
             return
             
         hand = self.game.dealer.hands[0]
@@ -272,7 +253,7 @@ class BlackjackUI:
             widget.destroy()
         self.player_canvases = []
 
-        if self.game.state == GameState.BETTING:
+        if not self.game.player.hands[0].cards:
             return
 
         # Use grid for player hands to allow for multiple rows if needed, or better horizontal control
@@ -285,8 +266,6 @@ class BlackjackUI:
             # Highlight current hand
             bg_color = "#388e3c" if i == self.game.current_hand_index and self.game.state == GameState.PLAYER_TURN else "#2e7d32"
             title = f"Hand {i+1}" if len(self.game.player.hands) > 1 else "Your Hand"
-            if hand.bet:
-                title += f" (${hand.bet})"
             
             label = tk.Label(hand_frame, text=title, bg=bg_color, fg="white", font=("Arial", 10, "bold"))
             label.pack(pady=(0, 5))

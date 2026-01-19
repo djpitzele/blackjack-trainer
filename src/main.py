@@ -3,7 +3,6 @@ from blackjack.game import BlackjackGame, GameState
 def print_game_state(game: BlackjackGame):
     status = game.get_game_status()
     print("\n" + "="*30)
-    print(f"Bankroll: ${status['bankroll']}")
     print(f"Dealer Hand: {status['dealer_hand']}")
     print("Player Hands:")
     for i, hand in enumerate(status['player_hands']):
@@ -17,17 +16,13 @@ def main():
     game = BlackjackGame(player_name)
 
     while True:
-        if game.player.bankroll <= 0:
-            print("You're broke! Game over.")
-            break
-        
         try:
-            bet = int(input(f"\nEnter bet amount (Current bankroll: ${game.player.bankroll}, '0' to quit): "))
-            if bet == 0:
+            choice = input("\nPress Enter to deal next hand or 'Q' to quit: ").strip().upper()
+            if choice == 'Q':
                 break
-            game.start_round(bet)
-        except ValueError as e:
-            print(f"Invalid input: {e}")
+            game.start_round()
+        except Exception as e:
+            print(f"Error: {e}")
             continue
 
         while game.state == GameState.PLAYER_TURN:
@@ -95,7 +90,6 @@ def main():
                 else:
                     print(f"Hand {i+1} finished with {val}")
 
-    print(f"Final bankroll: ${game.player.bankroll}")
     print("Thanks for playing!")
 
 if __name__ == "__main__":
