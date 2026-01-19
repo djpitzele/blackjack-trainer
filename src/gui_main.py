@@ -6,9 +6,10 @@ from blackjack.models import Card, Hand
 class BlackjackUI:
     """Manages the Blackjack GUI using tkinter."""
     
-    CARD_WIDTH = 70
-    CARD_HEIGHT = 100
-    CARD_SPACING = 20
+    CARD_SCALE_FACTOR = 2.0
+    CARD_WIDTH = int(70 * CARD_SCALE_FACTOR)
+    CARD_HEIGHT = int(100 * CARD_SCALE_FACTOR)
+    CARD_SPACING = int(20 * CARD_SCALE_FACTOR)
     
     SUIT_COLORS = {
         '♠': 'black',
@@ -37,7 +38,7 @@ class BlackjackUI:
         self.dealer_frame = tk.LabelFrame(self.main_frame, text="Dealer", bg="#2e7d32", fg="white", font=("Arial", 12, "bold"))
         self.dealer_frame.pack(pady=10, fill=tk.X, padx=20)
         
-        self.dealer_canvas = tk.Canvas(self.dealer_frame, height=self.CARD_HEIGHT + 20, bg="#2e7d32", highlightthickness=0)
+        self.dealer_canvas = tk.Canvas(self.dealer_frame, height=self.CARD_HEIGHT + int(40 * self.CARD_SCALE_FACTOR), bg="#2e7d32", highlightthickness=0)
         self.dealer_canvas.pack(fill=tk.X, padx=10, pady=5)
 
         # Info area (Feedback and Bankroll)
@@ -50,6 +51,7 @@ class BlackjackUI:
         # Player area
         self.player_hands_container = tk.Frame(self.main_frame, bg="#2e7d32")
         self.player_hands_container.pack(pady=10, fill=tk.BOTH, expand=True, padx=20)
+        self.player_hands_container.grid_rowconfigure(0, weight=1)
         
         # We'll dynamically create canvases for player hands
         self.player_canvases = []
@@ -210,22 +212,35 @@ class BlackjackUI:
         
         if hidden:
             # Draw card back
-            canvas.create_rectangle(x + 5, y + 5, x + self.CARD_WIDTH - 5, y + self.CARD_HEIGHT - 5, fill="#1565c0", outline="#0d47a1")
-            canvas.create_text(x + self.CARD_WIDTH//2, y + self.CARD_HEIGHT//2, text="?", fill="white", font=("Arial", 20, "bold"))
+            canvas.create_rectangle(x + int(5 * self.CARD_SCALE_FACTOR), y + int(5 * self.CARD_SCALE_FACTOR),
+                                    x + self.CARD_WIDTH - int(5 * self.CARD_SCALE_FACTOR),
+                                    y + self.CARD_HEIGHT - int(5 * self.CARD_SCALE_FACTOR),
+                                    fill="#1565c0", outline="#0d47a1")
+            canvas.create_text(x + self.CARD_WIDTH//2, y + self.CARD_HEIGHT//2, text="?", fill="white",
+                               font=("Arial", int(20 * self.CARD_SCALE_FACTOR), "bold"))
             return
 
         color = self.SUIT_COLORS.get(card.suit, "black")
-        
+
         # Rank and Suit in top-left
-        canvas.create_text(x + 5, y + 5, text=card.rank, anchor=tk.NW, fill=color, font=("Arial", 12, "bold"))
-        canvas.create_text(x + 5, y + 22, text=card.suit, anchor=tk.NW, fill=color, font=("Arial", 14))
-        
+        canvas.create_text(x + int(5 * self.CARD_SCALE_FACTOR), y + int(5 * self.CARD_SCALE_FACTOR), text=card.rank,
+                           anchor=tk.NW, fill=color, font=("Arial", int(12 * self.CARD_SCALE_FACTOR), "bold"))
+        canvas.create_text(x + int(5 * self.CARD_SCALE_FACTOR), y + int(22 * self.CARD_SCALE_FACTOR), text=card.suit,
+                           anchor=tk.NW, fill=color, font=("Arial", int(14 * self.CARD_SCALE_FACTOR)))
+
         # Suit in center
-        canvas.create_text(x + self.CARD_WIDTH//2, y + self.CARD_HEIGHT//2, text=card.suit, fill=color, font=("Arial", 30))
-        
+        canvas.create_text(x + self.CARD_WIDTH//2, y + self.CARD_HEIGHT//2, text=card.suit, fill=color,
+                           font=("Arial", int(30 * self.CARD_SCALE_FACTOR)))
+
         # Rank and Suit in bottom-right (rotated-like)
-        canvas.create_text(x + self.CARD_WIDTH - 5, y + self.CARD_HEIGHT - 5, text=card.rank, anchor=tk.SE, fill=color, font=("Arial", 12, "bold"))
-        canvas.create_text(x + self.CARD_WIDTH - 5, y - 22 + self.CARD_HEIGHT, text=card.suit, anchor=tk.SE, fill=color, font=("Arial", 14))
+        canvas.create_text(x + self.CARD_WIDTH - int(5 * self.CARD_SCALE_FACTOR),
+                           y + self.CARD_HEIGHT - int(5 * self.CARD_SCALE_FACTOR),
+                           text=card.rank, anchor=tk.SE, fill=color,
+                           font=("Arial", int(12 * self.CARD_SCALE_FACTOR), "bold"))
+        canvas.create_text(x + self.CARD_WIDTH - int(5 * self.CARD_SCALE_FACTOR),
+                           y - int(22 * self.CARD_SCALE_FACTOR) + self.CARD_HEIGHT,
+                           text=card.suit, anchor=tk.SE, fill=color,
+                           font=("Arial", int(14 * self.CARD_SCALE_FACTOR)))
 
     def _draw_dealer_hand(self):
         """Renders the dealer's cards."""
@@ -239,12 +254,18 @@ class BlackjackUI:
         for i, card in enumerate(hand.cards):
             is_hidden = (i == 1 and hide_first)
             # Adjusted card spacing for dealer
-            self._draw_card(self.dealer_canvas, card, 10 + i * (self.CARD_WIDTH // 2 + 10), 10, hidden=is_hidden)
+            card_overlap_x = int(self.CARD_WIDTH * 0.4) # Overlap by 40% for visual appeal
+            total_hand_width = self.CARD_WIDTH + (len(hand.cards) - 1) * card_overlap_x
             
-        if not hide_first:
-            val = hand.get_value()
+            canvas_center_x = self.dealer_canvas.winfo_width() / 2
+            start_x = canvas_center_x - (total_hand_width / 2)
+
+            self._draw_card(self.dealer_canvas, card, start_x + i * card_overlap_x, int(10 * self.CARD_SCALE_FACTOR), hidden=is_hidden)
+            
+        # if not hide_first:
+            # val = hand.get_value()
             # Adjust value label position if cards are spread out more
-            self.dealer_canvas.create_text(10, self.CARD_HEIGHT + 15, text=f"Value: {val}", anchor=tk.W, fill="white", font=("Arial", 10, "bold"))
+            # self.dealer_canvas.create_text(10, self.CARD_HEIGHT + 15, text=f"Value: {val}", anchor=tk.W, fill="white", font=("Arial", 10, "bold"))
 
     def _draw_player_hands(self):
         """Renders the player's hands (supports multiple for splits)."""
@@ -256,37 +277,51 @@ class BlackjackUI:
         if not self.game.player.hands[0].cards:
             return
 
-        # Use grid for player hands to allow for multiple rows if needed, or better horizontal control
-        # For now, we'll keep it in a row, but control spacing better.
+        # Clear existing column configurations to ensure dynamic centering works on updates
+        num_cols = self.player_hands_container.grid_size()[0]
+        for i in range(num_cols + 2): # Clear all potential columns, including spacers
+            self.player_hands_container.grid_columnconfigure(i, weight=0)
+
+        # Add 'spacer' columns on either side to center the player hands group
+        self.player_hands_container.grid_columnconfigure(0, weight=1)
+        self.player_hands_container.grid_columnconfigure(len(self.game.player.hands) + 1, weight=1)
+
+        card_overlap_x = int(self.CARD_WIDTH * 0.4) # Overlap by 40% for visual appeal, consistent with dealer
+        max_cards_per_hand = 8 # Assuming a reasonable maximum to size the canvas
+        canvas_width = self.CARD_WIDTH + (max_cards_per_hand - 1) * card_overlap_x
+
         for i, hand in enumerate(self.game.player.hands):
             # Create a sub-frame for each hand to contain its label and canvas
             hand_frame = tk.Frame(self.player_hands_container, bg="#2e7d32")
-            hand_frame.grid(row=0, column=i, padx=10, pady=5)
+            # Place hand frames in the grid, offset by 1 due to the leading spacer column
+            hand_frame.grid(row=0, column=i + 1, padx=int(10 * self.CARD_SCALE_FACTOR), pady=int(5 * self.CARD_SCALE_FACTOR))
             
             # Highlight current hand
             bg_color = "#388e3c" if i == self.game.current_hand_index and self.game.state == GameState.PLAYER_TURN else "#2e7d32"
             title = f"Hand {i+1}" if len(self.game.player.hands) > 1 else "Your Hand"
             
-            label = tk.Label(hand_frame, text=title, bg=bg_color, fg="white", font=("Arial", 10, "bold"))
-            label.pack(pady=(0, 5))
+            label = tk.Label(hand_frame, text=title, bg=bg_color, fg="white", font=("Arial", int(10 * self.CARD_SCALE_FACTOR), "bold"))
+            label.pack(pady=(0, int(5 * self.CARD_SCALE_FACTOR)))
             
-            # Calculate canvas width based on maximum expected cards (e.g., 5 cards slightly overlapping)
-            canvas_width = self.CARD_WIDTH + (5 * (self.CARD_WIDTH // 3)) # Accommodate up to 5 cards with overlap
-            canvas = tk.Canvas(hand_frame, width=canvas_width, height=self.CARD_HEIGHT + 40, bg=bg_color, highlightthickness=1 if i == self.game.current_hand_index and self.game.state == GameState.PLAYER_TURN else 0, highlightbackground="yellow")
+            canvas = tk.Canvas(hand_frame, width=canvas_width, height=self.CARD_HEIGHT + int(40 * self.CARD_SCALE_FACTOR), bg=bg_color,
+                               highlightthickness=1 if i == self.game.current_hand_index and self.game.state == GameState.PLAYER_TURN else 0,
+                               highlightbackground="yellow")
             canvas.pack()
             self.player_canvases.append(canvas)
             
             for j, card in enumerate(hand.cards):
-                # Adjusted card spacing for player hands to create overlapping effect
-                self._draw_card(canvas, card, 10 + j * (self.CARD_WIDTH // 3), 10) # Cards overlap by 2/3 of their width
+                # Calculate start_x to center cards within this hand's canvas
+                total_current_hand_width = self.CARD_WIDTH + (len(hand.cards) - 1) * card_overlap_x
+                start_x = (canvas_width / 2) - (total_current_hand_width / 2)
+                self._draw_card(canvas, card, start_x + j * card_overlap_x, int(10 * self.CARD_SCALE_FACTOR))
             
-            val = hand.get_value()
+            # val = hand.get_value()
             status = ""
             if hand.is_blackjack(): status = " - BLACKJACK!"
             elif hand.is_bust(): status = " - BUST!"
             elif hand.is_stayed: status = " - Stayed"
             
-            canvas.create_text(10, self.CARD_HEIGHT + 25, text=f"Value: {val}{status}", anchor=tk.W, fill="white", font=("Arial", 10, "bold"))
+            # canvas.create_text(10, self.CARD_HEIGHT + 25, text=f"Value: {val}{status}", anchor=tk.W, fill="white", font=("Arial", 10, "bold"))
 
 if __name__ == "__main__":
     root = tk.Tk()
