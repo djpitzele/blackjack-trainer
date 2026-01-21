@@ -4,7 +4,7 @@ from enum import Enum, auto
 import random
 from typing import Optional
 
-DECK_PEN = 0.75
+DECK_PEN = 0.33
 
 class GameState(Enum):
     PLAYER_TURN = auto()
@@ -39,7 +39,7 @@ class BlackjackGame:
         self.player.reset()
         self.dealer.reset()
         
-        # Check for reshuffle (75% penetration)
+        # Check for reshuffle
         penetration = (self.deck.total_cards - self.deck.remaining_cards) / self.deck.total_cards
         if penetration > DECK_PEN:
             self.deck = Deck(num_decks=self.num_decks)
