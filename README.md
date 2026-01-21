@@ -21,6 +21,5 @@ python src/main.py
 
 # Future Plans
 In the future, I would like to add the following features:
-- Card counting trainer (randomly queries the user for the count)
 - A "for you" stream of hands that uses deep learning to figure out which hands you are worst at and serve you those
 - (maybe) run my own Monte Carlo simulations to adjust perfect play depending on the count
