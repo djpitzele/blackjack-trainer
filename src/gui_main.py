@@ -1,7 +1,10 @@
 import tkinter as tk
-from tkinter import messagebox
+from tkinter import messagebox, simpledialog
 from blackjack.game import BlackjackGame, GameState
 from blackjack.models import Card, Hand
+
+COUNT_MIN = 1
+COUNT_MAX = 3
 
 class BlackjackUI:
     """Manages the Blackjack GUI using tkinter."""
@@ -97,6 +100,8 @@ class BlackjackUI:
         try:
             self.game.start_round()
             self.update_ui()
+            if self.game.state == GameState.ROUND_OVER:
+                self._check_count_query()
         except Exception as e:
             messagebox.showerror("Error", str(e))
 
@@ -104,20 +109,20 @@ class BlackjackUI:
         """Handles hit action."""
         if self.game.state != GameState.PLAYER_TURN: return
         self.game.hit()
-        self.update_ui()
+        self._check_state_and_update()
 
     def handle_stand(self):
         """Handles stand action."""
         if self.game.state != GameState.PLAYER_TURN: return
         self.game.stand()
-        self.update_ui()
+        self._check_state_and_update()
 
     def handle_double(self):
         """Handles double down action."""
         if self.game.state != GameState.PLAYER_TURN: return
         try:
             self.game.double_down()
-            self.update_ui()
+            self._check_state_and_update()
         except Exception as e:
             messagebox.showwarning("Action Not Possible", str(e))
 
@@ -126,9 +131,46 @@ class BlackjackUI:
         if self.game.state != GameState.PLAYER_TURN: return
         try:
             self.game.split()
-            self.update_ui()
+            self._check_state_and_update()
         except Exception as e:
             messagebox.showwarning("Action Not Possible", str(e))
+
+    def _check_state_and_update(self):
+        """Checks if it's the dealer's turn and updates the UI."""
+        self.update_ui()
+        if self.game.state == GameState.DEALER_TURN:
+            self.root.after(750, self._process_dealer_turn)
+
+    def _process_dealer_turn(self):
+        """Handles the dealer's turn with delays."""
+        if self.game.state != GameState.DEALER_TURN:
+            return
+
+        hit = self.game.dealer_hit_if_needed()
+        self.update_ui()
+        
+        if hit:
+            self.root.after(750, self._process_dealer_turn)
+        else:
+            self.game.resolve_round()
+            self.update_ui()
+            self._check_count_query()
+
+    def _check_count_query(self):
+        """Prompts the user for the count if needed."""
+        if self.game.needs_count_verification:
+            user_count = simpledialog.askinteger("Card Counting", "What is the current running count?", parent=self.root)
+            
+            actual_count = self.game.running_count
+            if user_count == actual_count:
+                messagebox.showinfo("Correct!", f"Well done! The running count is indeed {actual_count}.")
+            else:
+                messagebox.showerror("Incorrect", f"The correct running count was {actual_count}.")
+            
+            # Reset the query state in the game
+            self.game.needs_count_verification = False
+            import random
+            self.game.hands_until_next_query = random.randint(COUNT_MIN, COUNT_MAX)
 
     def update_ui(self):
         """Refreshes the entire UI state."""

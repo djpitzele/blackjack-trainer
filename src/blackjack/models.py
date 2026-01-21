@@ -16,6 +16,14 @@ class Card:
             return 11  # Aces are handled dynamically in Hand.get_value()
         return int(self.rank)
 
+    def get_hi_lo_value(self) -> int:
+        """Returns the Hi-Lo value of the card."""
+        if self.rank in ['2', '3', '4', '5', '6']:
+            return 1
+        if self.rank in ['7', '8', '9']:
+            return 0
+        return -1 # 10, J, Q, K, A
+
     def __repr__(self):
         return f"{self.rank}{self.suit}"
 
@@ -25,11 +33,13 @@ class Deck:
     SUITS = ['♠', '♥', '♦', '♣']
 
     def __init__(self, num_decks: int = 1):
+        self.num_decks = num_decks
         self.cards: List[Card] = []
         for _ in range(num_decks):
             for suit in self.SUITS:
                 for rank in self.RANKS:
                     self.cards.append(Card(rank, suit))
+        self.initial_count = len(self.cards)
         self.shuffle()
 
     def shuffle(self):
@@ -41,6 +51,14 @@ class Deck:
         if not self.cards:
             raise ValueError("No cards left in the deck.")
         return self.cards.pop()
+
+    @property
+    def remaining_cards(self) -> int:
+        return len(self.cards)
+
+    @property
+    def total_cards(self) -> int:
+        return self.initial_count
 
 class Hand:
     """Represents a hand of cards for a player or dealer."""

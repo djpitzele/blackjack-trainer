@@ -1,6 +1,10 @@
 from .models import Deck, Player, Dealer, Hand, Card
 from .strategy import get_recommended_move
 from enum import Enum, auto
+import random
+from typing import Optional
+
+DECK_PEN = 0.75
 
 class GameState(Enum):
     PLAYER_TURN = auto()
@@ -10,12 +14,22 @@ class GameState(Enum):
 class BlackjackGame:
     """Manages the flow and logic of a Blackjack game."""
     def __init__(self, player_name: str, num_decks: int = 6):
+        self.num_decks = num_decks
         self.deck = Deck(num_decks=num_decks)
         self.player = Player(player_name)
         self.dealer = Dealer()
         self.state = GameState.ROUND_OVER
         self.current_hand_index = 0
         self.last_move_feedback: Optional[dict] = None
+        self.running_count = 0
+        self.hands_until_next_query = random.randint(1, 3)
+        self.needs_count_verification = False
+
+    def _deal_card(self) -> Card:
+        """Deals a card and updates the running count."""
+        card = self.deck.deal()
+        self.running_count += card.get_hi_lo_value()
+        return card
 
     def start_round(self):
         """Initializes a new round."""
@@ -24,13 +38,18 @@ class BlackjackGame:
 
         self.player.reset()
         self.dealer.reset()
-        self.deck = Deck(num_decks=6) # Reshuffle every round for simplicity or track penetration
         
+        # Check for reshuffle (75% penetration)
+        penetration = (self.deck.total_cards - self.deck.remaining_cards) / self.deck.total_cards
+        if penetration > DECK_PEN:
+            self.deck = Deck(num_decks=self.num_decks)
+            self.running_count = 0
+
         # Initial deal
-        self.player.hands[0].add_card(self.deck.deal())
-        self.dealer.hands[0].add_card(self.deck.deal())
-        self.player.hands[0].add_card(self.deck.deal())
-        self.dealer.hands[0].add_card(self.deck.deal())
+        self.player.hands[0].add_card(self._deal_card())
+        self.dealer.hands[0].add_card(self._deal_card())
+        self.player.hands[0].add_card(self._deal_card())
+        self.dealer.hands[0].add_card(self._deal_card())
 
         self.state = GameState.PLAYER_TURN
         self.current_hand_index = 0
@@ -68,7 +87,7 @@ class BlackjackGame:
         self._record_move_feedback("H", self.current_hand_index)
         
         hand = self.player.hands[self.current_hand_index]
-        hand.add_card(self.deck.deal())
+        hand.add_card(self._deal_card())
 
         if hand.is_bust():
             self._advance_hand()
@@ -94,7 +113,7 @@ class BlackjackGame:
         
         self._record_move_feedback("D", self.current_hand_index)
 
-        hand.add_card(self.deck.deal())
+        hand.add_card(self._deal_card())
         hand.is_stayed = True
         self._advance_hand()
 
@@ -118,8 +137,8 @@ class BlackjackGame:
         new_hand.add_card(card_to_move)
         
         # Deal new cards to both hands
-        hand.add_card(self.deck.deal())
-        new_hand.add_card(self.deck.deal())
+        hand.add_card(self._deal_card())
+        new_hand.add_card(self._deal_card())
         
         # Add the new hand to the player's list of hands
         # Insert it after the current hand to play it next
@@ -145,26 +164,41 @@ class BlackjackGame:
 
         if self.current_hand_index >= len(self.player.hands):
             self.state = GameState.DEALER_TURN
-            self.dealer_play()
+            # We don't call dealer_play() here anymore to allow the UI to handle timing.
 
     def dealer_play(self):
-        """Dealer hits until 17 or bust."""
+        """Dealer hits until 17 or bust. Note: This happens instantly."""
         if self.state != GameState.DEALER_TURN:
             return
 
-        # Dealer only plays if player hasn't busted all hands or has a blackjack
-        # Actually, standard rules: Dealer plays unless all player hands busted.
         all_busted = all(hand.is_bust() for hand in self.player.hands)
-        
         if not all_busted:
-            while self.dealer.should_hit():
-                self.dealer.hands[0].add_card(self.deck.deal())
+            while self.dealer_hit_if_needed():
+                pass
         
         self.resolve_round()
 
+    def dealer_hit_if_needed(self) -> bool:
+        """
+        Executes a single dealer hit if appropriate.
+        Returns True if a card was dealt, False if the dealer is finished.
+        """
+        if self.state != GameState.DEALER_TURN:
+            return False
+
+        all_busted = all(hand.is_bust() for hand in self.player.hands)
+        if not all_busted and self.dealer.should_hit():
+            self.dealer.hands[0].add_card(self._deal_card())
+            return True
+        
+        return False
+
     def resolve_round(self):
-        """Determines hand outcomes."""
+        """Determines hand outcomes and manages count queries."""
         self.state = GameState.ROUND_OVER
+        self.hands_until_next_query -= 1
+        if self.hands_until_next_query <= 0:
+            self.needs_count_verification = True
 
     def get_game_status(self):
         """Returns a summary of the current game state."""
