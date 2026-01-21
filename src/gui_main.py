@@ -186,6 +186,8 @@ class BlackjackUI:
             curr_hand = self.game.player.hands[self.game.current_hand_index]
             self.split_btn.config(state=tk.NORMAL if curr_hand.can_split() else tk.DISABLED)
             self.double_btn.config(state=tk.NORMAL if curr_hand.can_double_down() else tk.DISABLED)
+        elif self.game.state == GameState.DEALER_TURN:
+            self._show_feedback()
         elif self.game.state == GameState.ROUND_OVER:
             self.new_round_btn.pack()
             if self.game.dealer.hands[0].cards:
