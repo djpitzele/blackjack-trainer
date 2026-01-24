@@ -343,11 +343,18 @@ class BlackjackUI:
         max_cards_per_hand = 8 # Assuming a reasonable maximum to size the canvas
         canvas_width = self.CARD_WIDTH + (max_cards_per_hand - 1) * card_overlap_x
 
+        num_player_hands = len(self.game.player.hands)
+        current_hand_padding_x = int(20 * self.CARD_SCALE_FACTOR) # Default for 1-2 hands
+        if num_player_hands == 3:
+            current_hand_padding_x = int(5 * self.CARD_SCALE_FACTOR) # Reduced for 3 hands
+        elif num_player_hands >= 4:
+            current_hand_padding_x = int(2 * self.CARD_SCALE_FACTOR) # Even more reduced for 4+ hands
+
         for i, hand in enumerate(self.game.player.hands):
             # Create a sub-frame for each hand to contain its label and canvas
             hand_frame = tk.Frame(self.player_hands_container, bg="#2e7d32")
             # Place hand frames in the grid, offset by 1 due to the leading spacer column
-            hand_frame.grid(row=0, column=i + 1, padx=int(10 * self.CARD_SCALE_FACTOR), pady=int(5 * self.CARD_SCALE_FACTOR))
+            hand_frame.grid(row=0, column=i + 1, padx=current_hand_padding_x, pady=int(5 * self.CARD_SCALE_FACTOR))
             
             # Highlight current hand
             bg_color = "#388e3c" if i == self.game.current_hand_index and self.game.state == GameState.PLAYER_TURN else "#2e7d32"
