@@ -100,6 +100,11 @@ class BlackjackUI:
         try:
             self.game.start_round()
             self.update_ui()
+            
+            if self.game.deck_reshuffled_in_round:
+                messagebox.showinfo("Deck reshuffled!", "The deck was reshuffled due to penetration exceeding the limit.")
+                self.root.after(2000, self._clear_status_label) # Clear after 2 seconds
+            
             if self.game.state == GameState.ROUND_OVER:
                 self._check_count_query()
         except Exception as e:
@@ -171,6 +176,10 @@ class BlackjackUI:
             self.game.needs_count_verification = False
             import random
             self.game.hands_until_next_query = random.randint(COUNT_MIN, COUNT_MAX)
+
+    def _clear_status_label(self):
+        """Clears the status label after a delay."""
+        self.status_label.config(text="", fg="white") # Reset text and color
 
     def update_ui(self):
         """Refreshes the entire UI state."""
