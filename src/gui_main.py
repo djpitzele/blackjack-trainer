@@ -172,9 +172,9 @@ class BlackjackUI:
             
             actual_count = self.game.running_count
             if user_count == actual_count:
-                messagebox.showinfo("Correct!", f"Well done! The running count is indeed {actual_count}.")
+                messagebox.showinfo("Correct!", f"Correct!\nRunning: {actual_count}\nTrue: {self.game.get_true_count():.2f}")
             else:
-                messagebox.showerror("Incorrect", f"The correct running count was {actual_count}.")
+                messagebox.showerror("Incorrect", f"Wrong\nRunning: {actual_count}\nTrue: {self.game.get_true_count():.2f}")
             
             # Reset the query state in the game
             self.game.needs_count_verification = False

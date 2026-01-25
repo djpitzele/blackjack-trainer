@@ -4,7 +4,7 @@ from enum import Enum, auto
 import random
 from typing import Optional
 
-DECK_PEN = 0.01
+DECK_PEN = 0.67
 
 class GameState(Enum):
     PLAYER_TURN = auto()
@@ -198,6 +198,13 @@ class BlackjackGame:
             return True
         
         return False
+
+    def get_true_count(self):
+        """Calculates and returns the true count."""
+        remaining_decks = self.deck.remaining_cards / 52
+        if remaining_decks == 0:
+            return 0
+        return self.running_count / remaining_decks
 
     def resolve_round(self):
         """Determines hand outcomes and manages count queries."""
