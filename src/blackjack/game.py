@@ -4,7 +4,7 @@ from enum import Enum, auto
 import random
 from typing import Optional
 
-DECK_PEN = 0.67
+DECK_PEN = 0.01
 
 class GameState(Enum):
     PLAYER_TURN = auto()
@@ -25,11 +25,13 @@ class BlackjackGame:
         self.hands_until_next_query = random.randint(1, 3)
         self.needs_count_verification = False
         self.deck_reshuffled_in_round = False # New flag to indicate reshuffle
+        self.cards_dealt_since_shuffle = 0
 
     def _deal_card(self) -> Card:
         """Deals a card and updates the running count."""
         card = self.deck.deal()
         self.running_count += card.get_hi_lo_value()
+        self.cards_dealt_since_shuffle += 1
         return card
 
     def start_round(self):
@@ -46,6 +48,7 @@ class BlackjackGame:
         if penetration > DECK_PEN:
             self.deck = Deck(num_decks=self.num_decks)
             self.running_count = 0
+            self.cards_dealt_since_shuffle = 0
             self.deck_reshuffled_in_round = True # Set flag if reshuffled
 
         # Initial deal

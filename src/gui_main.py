@@ -82,6 +82,10 @@ class BlackjackUI:
         # New round button (shown after round or at start)
         self.new_round_btn = tk.Button(self.controls_frame, text="Deal Hand (Enter)", command=self._start_new_round, width=20, font=("Arial", 12, "bold"), bg="#ffd700")
 
+        # Cards dealt counter (bottom right)
+        self.counter_label = tk.Label(self.main_frame, text="Cards dealt: 0", bg="#2e7d32", fg="#cccccc", font=("Arial", 9))
+        self.counter_label.place(relx=1.0, rely=1.0, anchor=tk.SE, x=-10, y=-10)
+
     def _bind_keys(self):
         """Binds keyboard events."""
         self.root.bind("<h>", lambda e: self.handle_hit())
@@ -208,6 +212,23 @@ class BlackjackUI:
         # Update Canvases
         self._draw_dealer_hand()
         self._draw_player_hands()
+        
+        # Update cards dealt counter
+        # The request said "how many cards we have gone through (before the current hand)"
+        # This means cards dealt in previous rounds since shuffle.
+        # But our `cards_dealt_since_shuffle` in game.py includes current hand cards.
+        # Let's subtract current cards on table if we want "before current hand".
+        
+        current_cards_count = 0
+        if self.game.state != GameState.ROUND_OVER:
+            # Dealer cards
+            current_cards_count += len(self.game.dealer.hands[0].cards)
+            # Player cards
+            for hand in self.game.player.hands:
+                current_cards_count += len(hand.cards)
+        
+        past_cards = self.game.cards_dealt_since_shuffle - current_cards_count
+        self.counter_label.config(text=f"Cards through: {past_cards}")
 
     def _show_feedback(self):
         """Displays strategy feedback for the last move."""
